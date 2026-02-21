@@ -32,9 +32,14 @@ if (command === "mcp") {
     "../.."
   );
 
+  // Create wrapper script that cd's into project dir before running
+  const wrapperPath = path.join(projectDir, "napkin-mcp.sh");
+  const wrapperContent = `#!/bin/bash\ncd ${projectDir} && npx tsx src/server/index.ts\n`;
+  fs.writeFileSync(wrapperPath, wrapperContent, { mode: 0o755 });
+
   (mcpConfig.mcpServers as Record<string, unknown>).napkin = {
-    command: "npx",
-    args: ["tsx", path.join(projectDir, "src/server/index.ts")],
+    command: wrapperPath,
+    args: [],
   };
 
   fs.writeFileSync(mcpJsonPath, JSON.stringify(mcpConfig, null, 2) + "\n");
