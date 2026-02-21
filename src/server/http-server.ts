@@ -26,7 +26,7 @@ export async function startHttpServer(options: HttpServerOptions): Promise<HttpS
   const clientDir = path.resolve(__dirname, "../client");
   app.use(express.static(clientDir));
   // SPA fallback
-  app.get("*", (_req, res) => {
+  app.get("/{*splat}", (_req, res) => {
     res.sendFile(path.join(clientDir, "index.html"));
   });
 
