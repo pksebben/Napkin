@@ -1,11 +1,14 @@
 import express from "express";
 import { createServer, type Server } from "http";
+import type { AddressInfo } from "net";
 import { WebSocketServer, WebSocket } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 import type { ClientMessage, ServerMessage } from "../shared/types.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+declare const __IS_BUNDLE__: boolean;
 
 export interface HttpServerOptions {
   port?: number;
@@ -19,13 +22,13 @@ export interface HttpServerInstance {
 }
 
 export async function startHttpServer(options: HttpServerOptions): Promise<HttpServerInstance> {
-  const port = options.port ?? 3210;
+  const port = options.port ?? 0;
   const app = express();
 
-  // Serve the built Vite client from dist/client
-  // Works from both src/server (tsx) and dist/server (compiled)
-  const projectRoot = path.resolve(__dirname, "../..");
-  const clientDir = path.join(projectRoot, "dist/client");
+  // Serve the built Vite client
+  const clientDir = (typeof __IS_BUNDLE__ !== "undefined" && __IS_BUNDLE__)
+    ? path.join(__dirname, "client")              // bundle: dist/napkin.cjs → dist/client/
+    : path.resolve(__dirname, "../../dist/client"); // dev: src/server/ → dist/client/
   app.use(express.static(clientDir));
   // SPA fallback
   app.get("/{*splat}", (_req, res) => {
@@ -66,7 +69,8 @@ export async function startHttpServer(options: HttpServerOptions): Promise<HttpS
     httpServer.listen(port, () => resolve());
   });
 
-  const url = `http://localhost:${port}`;
+  const actualPort = (httpServer.address() as AddressInfo).port;
+  const url = `http://localhost:${actualPort}`;
   console.error(`Napkin server listening at ${url}`);
 
   return {

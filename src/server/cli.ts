@@ -1,29 +1,22 @@
 #!/usr/bin/env node
 
-import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const command = process.argv[2];
 
-if (command === "mcp") {
+if (command === "mcp" || !command) {
   // Start the MCP server (dormant mode)
   await import("./index.js");
 } else if (command === "install") {
-  const projectDir = path.resolve(
+  const bundlePath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
-    "../.."
+    "../../dist/napkin.cjs"
   );
 
-  // Create wrapper script that cd's into project dir before running
-  const wrapperPath = path.join(projectDir, "napkin-mcp.sh");
-  const wrapperContent = `#!/bin/bash\ncd ${projectDir} && npx tsx src/server/index.ts\n`;
-  fs.writeFileSync(wrapperPath, wrapperContent, { mode: 0o755 });
-
-  // Register with Claude Code via CLI (user scope = available globally)
   try {
-    execSync(`claude mcp remove napkin 2>/dev/null; claude mcp add --scope user napkin -- ${wrapperPath}`, {
+    execSync(`claude mcp remove napkin 2>/dev/null; claude mcp add --scope user napkin -- node ${bundlePath}`, {
       stdio: "inherit",
     });
     console.log("Napkin MCP server registered. Restart Claude Code to activate.");

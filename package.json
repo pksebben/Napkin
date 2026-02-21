@@ -1,23 +1,23 @@
 {
   "name": "napkin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev:client": "vite",
     "dev:server": "tsx watch src/server/index.ts",
     "build:client": "vite build",
-    "build:server": "tsc -p tsconfig.node.json",
+    "build:server": "node scripts/build-server.mjs",
     "build": "npm run build:client && npm run build:server",
+    "build:plugin": "node scripts/build-plugin.mjs",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "prepublishOnly": "npm run build"
+    "test:watch": "vitest"
   },
   "bin": {
-    "napkin": "./dist/server/cli.js"
+    "napkin": "./dist/napkin.cjs"
   },
   "files": [
     "dist/",
-    "skill/"
+    "skills/"
   ],
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
@@ -37,6 +37,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.1.4",
+    "esbuild": "^0.27.3",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",

@@ -50,4 +50,12 @@ describe("StateStore", () => {
   it("throws on rollback to nonexistent timestamp", () => {
     expect(() => store.rollback("fake")).toThrow();
   });
+
+  it("returns snapshot count", () => {
+    expect(store.getSnapshotCount()).toBe(0);
+    store.setDesign("flowchart TD\n  A --> B", "user");
+    expect(store.getSnapshotCount()).toBe(1);
+    store.setDesign("flowchart TD\n  A --> B --> C", "claude");
+    expect(store.getSnapshotCount()).toBe(2);
+  });
 });

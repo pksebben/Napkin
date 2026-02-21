@@ -1,0 +1,8 @@
+{
+  "name": "napkin",
+  "version": "0.2.0",
+  "description": "Collaborative system design — Excalidraw ↔ Mermaid bridge.",
+  "author": {
+    "name": "pksebben"
+  }
+}

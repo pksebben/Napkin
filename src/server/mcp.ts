@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { StateStore } from "./state.js";
 import { validateMermaid } from "./validator.js";
+import type { SessionManager } from "./session-manager.js";
 import type {
   ReadDesignResult,
   WriteDesignResult,
@@ -53,38 +54,49 @@ export function handleRollback(store: StateStore, timestamp: string): void {
 // MCP server wiring
 // ---------------------------------------------------------------------------
 
-export function createMcpServer(
-  store: StateStore,
-  startHttpServer: () => Promise<string>,
-  stopHttpServer: () => Promise<void>,
-  broadcastDesign: (mermaid: string) => void
-): McpServer {
+export function createMcpServer(sessionManager: SessionManager): McpServer {
   const server = new McpServer({
     name: "napkin",
-    version: "0.1.0",
+    version: "0.2.0",
   });
 
-  // napkin_start — launches the HTTP/WebSocket server, returns the URL
-  server.tool("napkin_start", "Start the Napkin HTTP server", async () => {
-    const url = await startHttpServer();
-    return {
-      content: [{ type: "text", text: JSON.stringify({ url }) }],
-    };
-  });
+  // napkin_start — creates/returns a session with its HTTP server
+  server.tool(
+    "napkin_start",
+    "Start the Napkin HTTP server",
+    { session: z.string().optional() },
+    async ({ session: name }) => {
+      const info = await sessionManager.createSession(name ?? undefined);
+      return {
+        content: [{ type: "text", text: JSON.stringify({ url: info.url, session: info.name }) }],
+      };
+    }
+  );
 
-  // napkin_stop — stops the HTTP/WebSocket server
-  server.tool("napkin_stop", "Stop the Napkin HTTP server", async () => {
-    await stopHttpServer();
-    return {
-      content: [{ type: "text", text: JSON.stringify({ stopped: true }) }],
-    };
-  });
+  // napkin_stop — stops one session or all sessions
+  server.tool(
+    "napkin_stop",
+    "Stop the Napkin HTTP server",
+    { session: z.string().optional() },
+    async ({ session: name }) => {
+      if (name) {
+        await sessionManager.destroySession(name);
+      } else {
+        await sessionManager.destroyAll();
+      }
+      return {
+        content: [{ type: "text", text: JSON.stringify({ stopped: true }) }],
+      };
+    }
+  );
 
-  // napkin_read_design — returns current design state
+  // napkin_read_design — returns current design state for a session
   server.tool(
     "napkin_read_design",
     "Read the current design from Napkin",
-    async () => {
+    { session: z.string() },
+    async ({ session: name }) => {
+      const { store } = sessionManager.getSession(name);
       const result = await handleReadDesign(store);
       return {
         content: [{ type: "text", text: JSON.stringify(result) }],
@@ -96,9 +108,11 @@ export function createMcpServer(
   server.tool(
     "napkin_write_design",
     "Write a mermaid diagram to Napkin",
-    { mermaid: z.string() },
-    async ({ mermaid }) => {
-      const result = await handleWriteDesign(store, mermaid, broadcastDesign);
+    { session: z.string(), mermaid: z.string() },
+    async ({ session: name, mermaid }) => {
+      const broadcast = (m: string) => sessionManager.broadcastToSession(name, m);
+      const { store } = sessionManager.getSession(name);
+      const result = await handleWriteDesign(store, mermaid, broadcast);
       if (!result.success) {
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
@@ -111,12 +125,13 @@ export function createMcpServer(
     }
   );
 
-  // napkin_get_history — returns design history
+  // napkin_get_history — returns design history for a session
   server.tool(
     "napkin_get_history",
     "Get design history from Napkin",
-    { limit: z.number().optional().default(10) },
-    async ({ limit }) => {
+    { session: z.string(), limit: z.number().optional().default(10) },
+    async ({ session: name, limit }) => {
+      const { store } = sessionManager.getSession(name);
       const history = handleGetHistory(store, limit);
       return {
         content: [{ type: "text", text: JSON.stringify(history) }],
@@ -128,9 +143,10 @@ export function createMcpServer(
   server.tool(
     "napkin_rollback",
     "Rollback to a previous design in Napkin",
-    { timestamp: z.string() },
-    async ({ timestamp }) => {
+    { session: z.string(), timestamp: z.string() },
+    async ({ session: name, timestamp }) => {
       try {
+        const { store } = sessionManager.getSession(name);
         handleRollback(store, timestamp);
         return {
           content: [
@@ -151,6 +167,18 @@ export function createMcpServer(
           isError: true,
         };
       }
+    }
+  );
+
+  // napkin_list_sessions — returns all active sessions
+  server.tool(
+    "napkin_list_sessions",
+    "List all active Napkin sessions",
+    async () => {
+      const sessions = sessionManager.listSessions();
+      return {
+        content: [{ type: "text", text: JSON.stringify(sessions) }],
+      };
     }
   );
 

@@ -50,6 +50,10 @@ export class StateStore {
     return this.history.slice(-limit);
   }
 
+  getSnapshotCount(): number {
+    return this.history.length;
+  }
+
   rollback(timestamp: string): void {
     const snapshot = this.history.find((s) => s.timestamp === timestamp);
     if (!snapshot) {
