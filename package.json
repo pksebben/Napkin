@@ -1,0 +1,40 @@
+{
+  "name": "napkin",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev:client": "vite",
+    "dev:server": "tsx watch src/server/index.ts",
+    "build:client": "vite build",
+    "build:server": "tsc -p tsconfig.node.json",
+    "build": "npm run build:client && npm run build:server",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "bin": {
+    "napkin": "./dist/server/cli.js"
+  },
+  "dependencies": {
+    "@excalidraw/excalidraw": "^0.18.0",
+    "@excalidraw/mermaid-to-excalidraw": "^2.0.0",
+    "@mermaid-js/parser": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "excalidraw-to-mermaid": "^0.2.1",
+    "express": "^5.2.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.19.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
+    "@vitejs/plugin-react": "^5.1.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  }
+}
