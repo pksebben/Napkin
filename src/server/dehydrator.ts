@@ -23,7 +23,7 @@ export interface DehydrationResult {
  */
 export function dehydrate(
   excalidrawDoc: unknown,
-  direction?: string,
+  direction?: "TD" | "LR" | "BT" | "RL",
 ): DehydrationResult {
   const options = direction ? { direction } : {};
   const result = convert(excalidrawDoc as Record<string, unknown>, options);

@@ -130,7 +130,7 @@ export async function validateMermaid(
   const parserType = toParserType(diagramType);
   if (parserType) {
     try {
-      await parse(parserType, input);
+      await parse(parserType as any, input);
       return { valid: true };
     } catch (err: unknown) {
       if (err instanceof MermaidParseError) {

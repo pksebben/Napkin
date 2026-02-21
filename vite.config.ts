@@ -7,6 +7,9 @@ export default defineConfig({
   build: {
     outDir: "dist/client",
   },
+  test: {
+    exclude: ["dist/**", "node_modules/**"],
+  },
   optimizeDeps: {
     include: ["@excalidraw/excalidraw"],
     esbuildOptions: {
