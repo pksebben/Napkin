@@ -23,7 +23,9 @@ export async function startHttpServer(options: HttpServerOptions): Promise<HttpS
   const app = express();
 
   // Serve the built Vite client from dist/client
-  const clientDir = path.resolve(__dirname, "../client");
+  // Works from both src/server (tsx) and dist/server (compiled)
+  const projectRoot = path.resolve(__dirname, "../..");
+  const clientDir = path.join(projectRoot, "dist/client");
   app.use(express.static(clientDir));
   // SPA fallback
   app.get("/{*splat}", (_req, res) => {
