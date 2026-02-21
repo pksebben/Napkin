@@ -19,8 +19,8 @@ export async function handleReadDesign(
   return {
     mermaid: store.getCurrentDesign(),
     selectedElements: store.getSelectedElements(),
-    nodeCount: 0,
-    edgeCount: 0,
+    nodeCount: store.getNodeCount(),
+    edgeCount: store.getEdgeCount(),
   };
 }
 

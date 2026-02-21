@@ -9,7 +9,8 @@
     "build:server": "tsc -p tsconfig.node.json",
     "build": "npm run build:client && npm run build:server",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
   },
   "bin": {
     "napkin": "./dist/server/cli.js"

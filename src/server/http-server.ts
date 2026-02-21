@@ -41,7 +41,7 @@ export async function startHttpServer(options: HttpServerOptions): Promise<HttpS
     ws.on("message", (data) => {
       try {
         const msg: ClientMessage = JSON.parse(data.toString());
-        if (msg.type === "push_design") {
+        if (msg.type === "push_design" && Array.isArray(msg.selectedElementIds)) {
           options.onPushDesign(msg.elements, msg.appState, msg.selectedElementIds);
         }
       } catch (err) {
@@ -59,7 +59,8 @@ export async function startHttpServer(options: HttpServerOptions): Promise<HttpS
     }
   }
 
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
+    httpServer.on("error", reject);
     httpServer.listen(port, () => resolve());
   });
 

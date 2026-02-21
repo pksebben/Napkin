@@ -15,6 +15,7 @@ function onPushDesign(elements: unknown, appState: unknown, selectedElementIds: 
     const doc = { type: "excalidraw", version: 2, elements, appState };
     const result = dehydrate(doc);
     store.setDesign(result.mermaid, "user");
+    store.setCounts(result.nodeCount, result.edgeCount);
     store.setSelectedElements(selectedElementIds);
     console.error(`Design pushed: ${result.nodeCount} nodes, ${result.edgeCount} edges`);
   } catch (err) {

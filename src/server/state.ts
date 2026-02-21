@@ -5,6 +5,8 @@ const MAX_HISTORY = 50;
 export class StateStore {
   private currentDesign: string | null = null;
   private selectedElements: string[] = [];
+  private nodeCount: number = 0;
+  private edgeCount: number = 0;
   private history: DesignSnapshot[] = [];
 
   getCurrentDesign(): string | null {
@@ -17,6 +19,19 @@ export class StateStore {
 
   setSelectedElements(ids: string[]): void {
     this.selectedElements = ids;
+  }
+
+  getNodeCount(): number {
+    return this.nodeCount;
+  }
+
+  getEdgeCount(): number {
+    return this.edgeCount;
+  }
+
+  setCounts(nodeCount: number, edgeCount: number): void {
+    this.nodeCount = nodeCount;
+    this.edgeCount = edgeCount;
   }
 
   setDesign(mermaid: string, source: "user" | "claude"): void {
