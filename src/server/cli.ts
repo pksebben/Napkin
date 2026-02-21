@@ -3,6 +3,7 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { fileURLToPath } from "url";
 
 const command = process.argv[2];
 
@@ -26,9 +27,14 @@ if (command === "mcp") {
     }
   }
 
+  const projectDir = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "../.."
+  );
+
   (mcpConfig.mcpServers as Record<string, unknown>).napkin = {
-    command: "napkin",
-    args: ["mcp"],
+    command: "npx",
+    args: ["tsx", path.join(projectDir, "src/server/index.ts")],
   };
 
   fs.writeFileSync(mcpJsonPath, JSON.stringify(mcpConfig, null, 2) + "\n");
