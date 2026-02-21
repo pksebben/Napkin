@@ -2,7 +2,7 @@
 
 import fs from "fs";
 import path from "path";
-import os from "os";
+import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const command = process.argv[2];
@@ -11,22 +11,6 @@ if (command === "mcp") {
   // Start the MCP server (dormant mode)
   await import("./index.js");
 } else if (command === "install") {
-  // Add napkin to .claude/mcp.json
-  const claudeDir = path.join(os.homedir(), ".claude");
-  const mcpJsonPath = path.join(claudeDir, "mcp.json");
-
-  if (!fs.existsSync(claudeDir)) {
-    fs.mkdirSync(claudeDir, { recursive: true });
-  }
-
-  let mcpConfig: Record<string, unknown> = { mcpServers: {} };
-  if (fs.existsSync(mcpJsonPath)) {
-    mcpConfig = JSON.parse(fs.readFileSync(mcpJsonPath, "utf-8"));
-    if (!mcpConfig.mcpServers) {
-      mcpConfig.mcpServers = {};
-    }
-  }
-
   const projectDir = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     "../.."
@@ -37,14 +21,16 @@ if (command === "mcp") {
   const wrapperContent = `#!/bin/bash\ncd ${projectDir} && npx tsx src/server/index.ts\n`;
   fs.writeFileSync(wrapperPath, wrapperContent, { mode: 0o755 });
 
-  (mcpConfig.mcpServers as Record<string, unknown>).napkin = {
-    command: wrapperPath,
-    args: [],
-  };
-
-  fs.writeFileSync(mcpJsonPath, JSON.stringify(mcpConfig, null, 2) + "\n");
-  console.log(`Napkin added to ${mcpJsonPath}`);
-  console.log("Restart Claude Code to activate.");
+  // Register with Claude Code via CLI (user scope = available globally)
+  try {
+    execSync(`claude mcp remove napkin 2>/dev/null; claude mcp add --scope user napkin -- ${wrapperPath}`, {
+      stdio: "inherit",
+    });
+    console.log("Napkin MCP server registered. Restart Claude Code to activate.");
+  } catch {
+    console.error("Failed to register via 'claude mcp add'. Is Claude Code installed?");
+    process.exit(1);
+  }
 } else {
   console.log("Usage:");
   console.log("  napkin mcp       Start the MCP server (used by Claude Code)");
