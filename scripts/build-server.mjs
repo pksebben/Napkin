@@ -1,7 +1,7 @@
 import esbuild from "esbuild";
 
 await esbuild.build({
-  entryPoints: ["src/server/index.ts"],
+  entryPoints: ["src/server/cli.ts"],
   bundle: true,
   platform: "node",
   target: "node20",
