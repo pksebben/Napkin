@@ -3,3 +3,4 @@ dist/
 plugin/
 .worktrees/
 .napkin/
+.claude/settings.local.json
