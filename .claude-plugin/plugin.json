@@ -1,7 +1,7 @@
 {
   "name": "napkin",
   "version": "0.2.0",
-  "description": "Collaborative system design — Excalidraw ↔ Mermaid bridge.",
+  "description": "Collaborative system design on the back of a napkin. Bidirectional Excalidraw ↔ Mermaid bridge for Claude Code.",
   "author": {
     "name": "pksebben"
   }

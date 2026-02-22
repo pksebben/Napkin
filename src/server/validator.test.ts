@@ -32,20 +32,6 @@ describe("validateMermaid", () => {
     expect(result.errors).toBeDefined();
   });
 
-  it("accepts a valid pie chart (parser-supported type)", async () => {
-    const result = await validateMermaid('pie\n  "Cats" : 40\n  "Dogs" : 60');
-    expect(result).toEqual({ valid: true });
-  });
-
-  it("rejects an invalid pie chart", async () => {
-    const result = await validateMermaid(
-      "pie\n  not-a-section ==== garbage"
-    );
-    expect(result.valid).toBe(false);
-    expect(result.errors).toBeDefined();
-    expect(result.errors!.length).toBeGreaterThan(0);
-  });
-
   it("accepts a valid sequence diagram", async () => {
     const result = await validateMermaid(
       "sequenceDiagram\n  Alice->>Bob: Hello"
@@ -58,5 +44,38 @@ describe("validateMermaid", () => {
       "classDiagram\n  class Animal\n  Animal : +String name"
     );
     expect(result).toEqual({ valid: true });
+  });
+
+  it("rejects erDiagram as unsupported by Excalidraw", async () => {
+    const result = await validateMermaid(
+      'erDiagram\n  SESSION ||--o{ SNAPSHOT : "has"'
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors![0]).toContain("Unsupported diagram type");
+    expect(result.errors![0]).toContain("erDiagram");
+    expect(result.errors![0]).toContain("flowchart");
+  });
+
+  it("rejects stateDiagram-v2 as unsupported by Excalidraw", async () => {
+    const result = await validateMermaid(
+      "stateDiagram-v2\n  [*] --> Idle"
+    );
+    expect(result.valid).toBe(false);
+    expect(result.errors![0]).toContain("Unsupported diagram type");
+    expect(result.errors![0]).toContain("stateDiagram");
+  });
+
+  it("rejects pie chart as unsupported by Excalidraw", async () => {
+    const result = await validateMermaid('pie\n  "Cats" : 40\n  "Dogs" : 60');
+    expect(result.valid).toBe(false);
+    expect(result.errors![0]).toContain("Unsupported diagram type");
+  });
+
+  it("lists supported types in the rejection message", async () => {
+    const result = await validateMermaid("gantt\n  title A Gantt");
+    expect(result.valid).toBe(false);
+    expect(result.errors![0]).toContain("sequenceDiagram");
+    expect(result.errors![0]).toContain("classDiagram");
+    expect(result.errors![0]).toContain("flowchart");
   });
 });

@@ -9,7 +9,9 @@ export type ClientMessage = {
 // WebSocket messages: server → client
 export type ServerMessage =
   | { type: "design_update"; mermaid: string }
-  | { type: "status"; url: string };
+  | { type: "status"; url: string }
+  | { type: "session_list"; sessions: string[] }
+  | { type: "history_changed" };
 
 // State
 export interface DesignSnapshot {

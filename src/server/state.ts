@@ -54,11 +54,35 @@ export class StateStore {
     return this.history.length;
   }
 
+  restore(
+    currentDesign: string | null,
+    history: DesignSnapshot[],
+    nodeCount: number,
+    edgeCount: number,
+    selectedElements: string[],
+  ): void {
+    this.currentDesign = currentDesign;
+    this.history = history.length > MAX_HISTORY
+      ? history.slice(-MAX_HISTORY)
+      : [...history];
+    this.nodeCount = nodeCount;
+    this.edgeCount = edgeCount;
+    this.selectedElements = selectedElements;
+  }
+
   rollback(timestamp: string): void {
     const snapshot = this.history.find((s) => s.timestamp === timestamp);
     if (!snapshot) {
       throw new Error(`No snapshot found for timestamp: ${timestamp}`);
     }
     this.currentDesign = snapshot.mermaid;
+  }
+
+  deleteSnapshot(timestamp: string): void {
+    const idx = this.history.findIndex((s) => s.timestamp === timestamp);
+    if (idx === -1) {
+      throw new Error(`No snapshot found for timestamp: ${timestamp}`);
+    }
+    this.history.splice(idx, 1);
   }
 }

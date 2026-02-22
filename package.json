@@ -4,10 +4,11 @@
   "type": "module",
   "scripts": {
     "dev:client": "vite",
-    "dev:server": "tsx watch src/server/index.ts",
+    "dev:server": "NAPKIN_PORT=3210 tsx watch src/server/index.ts",
     "build:client": "vite build",
     "build:server": "node scripts/build-server.mjs",
-    "build": "npm run build:client && npm run build:server",
+    "clean": "rm -rf dist plugin",
+    "build": "npm run clean && npm run build:client && npm run build:server",
     "build:plugin": "node scripts/build-plugin.mjs",
     "test": "vitest run",
     "test:watch": "vitest"

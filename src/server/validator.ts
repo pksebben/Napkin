@@ -6,6 +6,20 @@ export interface ValidationResult {
 }
 
 /**
+ * Diagram types that @excalidraw/mermaid-to-excalidraw can render natively.
+ * Everything else falls back to a static image (which requires a browser-based
+ * mermaid renderer we don't have), producing a broken placeholder.
+ */
+const EXCALIDRAW_SUPPORTED_TYPES = [
+  "flowchart",
+  "graph",
+  "sequenceDiagram",
+  "classDiagram",
+] as const;
+
+const EXCALIDRAW_SUPPORTED_LABEL = EXCALIDRAW_SUPPORTED_TYPES.join(", ");
+
+/**
  * Diagram types that @mermaid-js/parser can validate with its Langium grammar.
  * For these types, we get full AST-level validation.
  */
@@ -123,6 +137,16 @@ export async function validateMermaid(
     return {
       valid: false,
       errors: [`Unrecognized diagram type: "${diagramType}"`],
+    };
+  }
+
+  // Reject diagram types that Excalidraw can't render natively
+  if (!(EXCALIDRAW_SUPPORTED_TYPES as readonly string[]).includes(diagramType)) {
+    return {
+      valid: false,
+      errors: [
+        `Unsupported diagram type: "${diagramType}". Napkin supports: ${EXCALIDRAW_SUPPORTED_LABEL}. Use a flowchart to express this concept instead.`,
+      ],
     };
   }
 

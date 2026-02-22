@@ -2,7 +2,7 @@
   "mcpServers": {
     "napkin": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/napkin.cjs"]
+      "args": ["./dist/napkin.cjs"]
     }
   }
 }

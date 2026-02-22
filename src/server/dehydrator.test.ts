@@ -123,4 +123,151 @@ describe("dehydrate", () => {
     expect(result.edgeCount).toBe(0);
     expect(result.mermaid).toContain("graph");
   });
+
+  it("emits style directives for nodes with custom colors", () => {
+    const doc = {
+      elements: [
+        {
+          id: "rect1",
+          type: "rectangle",
+          x: 100,
+          y: 100,
+          width: 150,
+          height: 60,
+          strokeStyle: "solid",
+          strokeColor: "#e03131",
+          backgroundColor: "#ffe0e0",
+          isDeleted: false,
+          boundElements: [{ id: "text1", type: "text" }],
+        },
+        {
+          id: "text1",
+          type: "text",
+          x: 110,
+          y: 115,
+          width: 130,
+          height: 30,
+          text: "Problem Node",
+          originalText: "Problem Node",
+          containerId: "rect1",
+          isDeleted: false,
+        },
+      ],
+    };
+
+    const result = dehydrate(doc);
+
+    expect(result.mermaid).toContain("style A fill:#ffe0e0,stroke:#e03131");
+  });
+
+  it("does not emit style directives for default-colored nodes", () => {
+    const doc = {
+      elements: [
+        {
+          id: "rect1",
+          type: "rectangle",
+          x: 100,
+          y: 100,
+          width: 150,
+          height: 60,
+          strokeStyle: "solid",
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          isDeleted: false,
+          boundElements: [{ id: "text1", type: "text" }],
+        },
+        {
+          id: "text1",
+          type: "text",
+          x: 110,
+          y: 115,
+          width: 130,
+          height: 30,
+          text: "Normal",
+          originalText: "Normal",
+          containerId: "rect1",
+          isDeleted: false,
+        },
+      ],
+    };
+
+    const result = dehydrate(doc);
+
+    expect(result.mermaid).not.toContain("style ");
+  });
+
+  it("handles mixed colored and default nodes", () => {
+    const doc = {
+      elements: [
+        {
+          id: "rect1",
+          type: "rectangle",
+          x: 100,
+          y: 100,
+          width: 150,
+          height: 60,
+          strokeStyle: "solid",
+          strokeColor: "#1e1e1e",
+          backgroundColor: "transparent",
+          isDeleted: false,
+          boundElements: [{ id: "text1", type: "text" }],
+        },
+        {
+          id: "text1",
+          type: "text",
+          x: 110,
+          y: 115,
+          width: 130,
+          height: 30,
+          text: "Normal",
+          originalText: "Normal",
+          containerId: "rect1",
+          isDeleted: false,
+        },
+        {
+          id: "rect2",
+          type: "rectangle",
+          x: 100,
+          y: 300,
+          width: 150,
+          height: 60,
+          strokeStyle: "solid",
+          strokeColor: "#2f9e44",
+          backgroundColor: "#d3f9d8",
+          isDeleted: false,
+          boundElements: [{ id: "text2", type: "text" }],
+        },
+        {
+          id: "text2",
+          type: "text",
+          x: 110,
+          y: 315,
+          width: 130,
+          height: 30,
+          text: "Approved",
+          originalText: "Approved",
+          containerId: "rect2",
+          isDeleted: false,
+        },
+        {
+          id: "arrow1",
+          type: "arrow",
+          x: 175,
+          y: 160,
+          width: 0,
+          height: 140,
+          startBinding: { elementId: "rect1", focus: 0, gap: 1 },
+          endBinding: { elementId: "rect2", focus: 0, gap: 1 },
+          endArrowhead: "arrow",
+          isDeleted: false,
+        },
+      ],
+    };
+
+    const result = dehydrate(doc);
+
+    // Only the second node (B) should have a style directive
+    expect(result.mermaid).not.toContain("style A ");
+    expect(result.mermaid).toContain("style B fill:#d3f9d8,stroke:#2f9e44");
+  });
 });

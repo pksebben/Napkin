@@ -18,5 +18,14 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    proxy: {
+      "^/s/.*/ws$": {
+        target: "ws://localhost:3210",
+        ws: true,
+      },
+      "/api": {
+        target: "http://localhost:3210",
+      },
+    },
   },
 });

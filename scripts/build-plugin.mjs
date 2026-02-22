@@ -21,10 +21,11 @@ function copyDir(src, dest) {
   }
 }
 
-// Copy each component into plugin/
+// Copy each component into plugin/ — only the build outputs, not stale tsc artifacts
 copyDir(".claude-plugin", path.join(OUT, ".claude-plugin"));
 copyDir("skills", path.join(OUT, "skills"));
-copyDir("dist", path.join(OUT, "dist"));
+copyDir("dist/client", path.join(OUT, "dist/client"));
+fs.copyFileSync("dist/napkin.cjs", path.join(OUT, "dist/napkin.cjs"));
 fs.copyFileSync(".mcp.json", path.join(OUT, ".mcp.json"));
 
 console.log("Plugin built: plugin/");
