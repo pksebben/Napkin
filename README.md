@@ -71,6 +71,8 @@ Claude will call `napkin_start`, hand you a URL (default `http://localhost:3210/
 5. **You see** the changes appear on the canvas in real time
 6. **Repeat** -- iterate until the design is right
 
+![Napkin workflow sequence diagram](docs/images/napkin_workflow_SD.png)
+
 ### Bidirectional Conversion
 
 | Direction | Process | Library |
@@ -134,6 +136,8 @@ Claude uses color to communicate status. These colors render as Excalidraw fill/
 | Green | Approved | `style NODE fill:#d3f9d8,stroke:#2f9e44` |
 
 You can also apply these colors manually from the highlight buttons in the sidebar.
+
+![Node highlighting example](docs/images/color_diagram.png)
 
 ### History and Rollback
 
