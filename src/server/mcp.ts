@@ -1,62 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { StateStore } from "./state.js";
-import { validateMermaid } from "./validator.js";
 import type { SessionManager } from "./session-manager.js";
-import type {
-  ReadDesignResult,
-  WriteDesignResult,
-  DesignSnapshot,
-} from "../shared/types.js";
-
-// ---------------------------------------------------------------------------
-// Pure handler functions (testable independently)
-// ---------------------------------------------------------------------------
-
-export async function handleReadDesign(
-  store: StateStore
-): Promise<ReadDesignResult> {
-  return {
-    mermaid: store.getCurrentDesign(),
-    selectedElements: store.getSelectedElements(),
-    nodeCount: store.getNodeCount(),
-    edgeCount: store.getEdgeCount(),
-  };
-}
-
-export async function handleWriteDesign(
-  store: StateStore,
-  mermaid: string,
-  broadcast: (mermaid: string) => void
-): Promise<WriteDesignResult> {
-  const validation = await validateMermaid(mermaid);
-  if (!validation.valid) {
-    return { success: false, errors: validation.errors };
-  }
-  store.setDesign(mermaid, "claude");
-  broadcast(mermaid);
-  return { success: true };
-}
-
-export function handleGetHistory(
-  store: StateStore,
-  limit: number
-): DesignSnapshot[] {
-  return store.getHistory(limit);
-}
-
-export function handleRollback(
-  store: StateStore,
-  timestamp: string,
-  broadcast: (mermaid: string) => void
-): void {
-  store.rollback(timestamp);
-  const design = store.getCurrentDesign();
-  if (design) {
-    broadcast(design);
-  }
-}
 
 // ---------------------------------------------------------------------------
 // MCP server wiring
@@ -104,8 +49,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
     "Read the current design from Napkin",
     { session: z.string() },
     async ({ session: name }) => {
-      const { store } = sessionManager.getSession(name);
-      const result = await handleReadDesign(store);
+      const result = await sessionManager.readDesign(name);
       return {
         content: [{ type: "text", text: JSON.stringify(result) }],
       };
@@ -115,12 +59,10 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
   // napkin_write_design — validates and stores a mermaid diagram
   server.tool(
     "napkin_write_design",
-    "Write a mermaid diagram to Napkin",
+    "Write a mermaid diagram to Napkin. Supported types: flowchart/graph, sequenceDiagram, classDiagram. Other types (erDiagram, stateDiagram, etc.) will be rejected — use a flowchart instead.",
     { session: z.string(), mermaid: z.string() },
     async ({ session: name, mermaid }) => {
-      const broadcast = (m: string) => sessionManager.broadcastToSession(name, m);
-      const { store } = sessionManager.getSession(name);
-      const result = await handleWriteDesign(store, mermaid, broadcast);
+      const result = await sessionManager.writeDesign(name, mermaid);
       if (!result.success) {
         return {
           content: [{ type: "text", text: JSON.stringify(result) }],
@@ -139,8 +81,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
     "Get design history from Napkin",
     { session: z.string(), limit: z.number().optional().default(10) },
     async ({ session: name, limit }) => {
-      const { store } = sessionManager.getSession(name);
-      const history = handleGetHistory(store, limit);
+      const history = await sessionManager.getHistory(name, limit);
       return {
         content: [{ type: "text", text: JSON.stringify(history) }],
       };
@@ -153,29 +94,20 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
     "Rollback to a previous design in Napkin",
     { session: z.string(), timestamp: z.string() },
     async ({ session: name, timestamp }) => {
-      try {
-        const broadcast = (m: string) => sessionManager.broadcastToSession(name, m);
-        const { store } = sessionManager.getSession(name);
-        handleRollback(store, timestamp, broadcast);
+      const result = await sessionManager.rollback(name, timestamp);
+      if (!result.success) {
         return {
           content: [
-            { type: "text", text: JSON.stringify({ success: true }) },
-          ],
-        };
-      } catch (err: unknown) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                success: false,
-                error: err instanceof Error ? err.message : "Unknown error",
-              }),
-            },
+            { type: "text", text: JSON.stringify(result) },
           ],
           isError: true,
         };
       }
+      return {
+        content: [
+          { type: "text", text: JSON.stringify({ success: true }) },
+        ],
+      };
     }
   );
 
@@ -184,7 +116,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
     "napkin_list_sessions",
     "List all active Napkin sessions",
     async () => {
-      const sessions = sessionManager.listSessions();
+      const sessions = await sessionManager.listSessions();
       return {
         content: [{ type: "text", text: JSON.stringify(sessions) }],
       };

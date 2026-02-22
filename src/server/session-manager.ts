@@ -1,13 +1,10 @@
-import { StateStore } from "./state.js";
-import { startHttpServer, type HttpServerInstance } from "./http-server.js";
-import { dehydrate } from "./dehydrator.js";
-
-export interface Session {
-  name: string;
-  store: StateStore;
-  httpServer: HttpServerInstance;
-  createdAt: Date;
-}
+import { startSharedServer, type SharedServerInstance } from "./shared-server.js";
+import type { SessionPersistence } from "./persistence.js";
+import type {
+  ReadDesignResult,
+  WriteDesignResult,
+  DesignSnapshot,
+} from "../shared/types.js";
 
 export interface SessionInfo {
   name: string;
@@ -17,94 +14,181 @@ export interface SessionInfo {
 }
 
 export class SessionManager {
-  private sessions = new Map<string, Session>();
+  private serverUrl: string | null = null;
+  private ownsServer = false;
+  private serverInstance: SharedServerInstance | null = null;
+  private mySessions = new Set<string>();
+  private persistence: SessionPersistence | null;
+  private port: number;
 
-  generateName(): string {
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let suffix = "";
-    for (let i = 0; i < 4; i++) {
-      suffix += chars[Math.floor(Math.random() * chars.length)];
+  constructor(persistence?: SessionPersistence, port?: number) {
+    this.persistence = persistence ?? null;
+    this.port = port ?? parseInt(process.env.NAPKIN_PORT ?? "3210", 10);
+  }
+
+  /**
+   * Ensure we have a server URL. First process starts the server;
+   * subsequent processes detect the existing one.
+   */
+  async ensureServer(): Promise<string> {
+    if (this.serverUrl) return this.serverUrl;
+
+    // Probe for existing server
+    try {
+      const res = await fetch(`http://localhost:${this.port}/api/sessions`, {
+        signal: AbortSignal.timeout(1000),
+      });
+      if (res.ok) {
+        this.serverUrl = `http://localhost:${this.port}`;
+        this.ownsServer = false;
+        console.error(`Napkin: connected to existing server at ${this.serverUrl}`);
+        return this.serverUrl;
+      }
+    } catch {
+      // Server not running, we'll start one
     }
-    return `napkin-${suffix}`;
+
+    // Start our own server
+    try {
+      this.serverInstance = await startSharedServer(
+        this.port,
+        this.persistence ?? undefined,
+      );
+      this.serverUrl = this.serverInstance.url;
+      this.ownsServer = true;
+      return this.serverUrl;
+    } catch (err: unknown) {
+      // Race condition: another process started the server between our probe and start
+      if (
+        err instanceof Error &&
+        "code" in err &&
+        (err as NodeJS.ErrnoException).code === "EADDRINUSE"
+      ) {
+        // Retry probe
+        try {
+          const res = await fetch(`http://localhost:${this.port}/api/sessions`, {
+            signal: AbortSignal.timeout(2000),
+          });
+          if (res.ok) {
+            this.serverUrl = `http://localhost:${this.port}`;
+            this.ownsServer = false;
+            console.error(`Napkin: connected to existing server at ${this.serverUrl} (after race)`);
+            return this.serverUrl;
+          }
+        } catch {
+          // Fall through to rethrow
+        }
+      }
+      throw err;
+    }
   }
 
   async createSession(name?: string): Promise<SessionInfo> {
-    const sessionName = name ?? this.generateName();
-
-    // Idempotent: return existing if name taken
-    const existing = this.sessions.get(sessionName);
-    if (existing) {
-      return this.toSessionInfo(existing);
+    const serverUrl = await this.ensureServer();
+    const res = await fetch(`${serverUrl}/api/sessions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to create session: ${res.status} ${await res.text()}`);
     }
-
-    const store = new StateStore();
-
-    const onPushDesign = (elements: unknown, appState: unknown, selectedElementIds: string[]): void => {
-      try {
-        const doc = { type: "excalidraw", version: 2, elements, appState };
-        const result = dehydrate(doc);
-        store.setDesign(result.mermaid, "user");
-        store.setCounts(result.nodeCount, result.edgeCount);
-        store.setSelectedElements(selectedElementIds);
-        console.error(`[${sessionName}] Design pushed: ${result.nodeCount} nodes, ${result.edgeCount} edges`);
-      } catch (err) {
-        console.error(`[${sessionName}] Dehydration failed:`, err);
-      }
+    const data = await res.json() as { name: string; createdAt: string; snapshotCount: number };
+    this.mySessions.add(data.name);
+    return {
+      name: data.name,
+      url: `${serverUrl}/s/${data.name}`,
+      createdAt: new Date(data.createdAt),
+      snapshotCount: data.snapshotCount,
     };
-
-    const httpServer = await startHttpServer({ port: 0, onPushDesign });
-
-    const session: Session = {
-      name: sessionName,
-      store,
-      httpServer,
-      createdAt: new Date(),
-    };
-
-    this.sessions.set(sessionName, session);
-    return this.toSessionInfo(session);
   }
 
-  getSession(name: string): Session {
-    const session = this.sessions.get(name);
-    if (!session) {
-      throw new Error(`No session found: ${name}`);
+  async readDesign(name: string): Promise<ReadDesignResult> {
+    const serverUrl = await this.ensureServer();
+    const res = await fetch(`${serverUrl}/api/sessions/${encodeURIComponent(name)}/design`);
+    if (!res.ok) {
+      throw new Error(`Failed to read design: ${res.status} ${await res.text()}`);
     }
-    return session;
+    return await res.json() as ReadDesignResult;
   }
 
-  getSessionInfo(name: string): SessionInfo {
-    return this.toSessionInfo(this.getSession(name));
+  async writeDesign(name: string, mermaid: string): Promise<WriteDesignResult> {
+    const serverUrl = await this.ensureServer();
+    const res = await fetch(`${serverUrl}/api/sessions/${encodeURIComponent(name)}/design`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mermaid }),
+    });
+    const data = await res.json() as WriteDesignResult;
+    return data;
+  }
+
+  async getHistory(name: string, limit: number): Promise<DesignSnapshot[]> {
+    const serverUrl = await this.ensureServer();
+    const res = await fetch(
+      `${serverUrl}/api/sessions/${encodeURIComponent(name)}/history?limit=${limit}`,
+    );
+    if (!res.ok) {
+      throw new Error(`Failed to get history: ${res.status} ${await res.text()}`);
+    }
+    const data = await res.json() as { history: DesignSnapshot[] };
+    return data.history;
+  }
+
+  async rollback(name: string, timestamp: string): Promise<{ success: boolean; mermaid?: string | null; error?: string }> {
+    const serverUrl = await this.ensureServer();
+    const res = await fetch(`${serverUrl}/api/sessions/${encodeURIComponent(name)}/rollback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ timestamp }),
+    });
+    return await res.json() as { success: boolean; mermaid?: string | null; error?: string };
   }
 
   async destroySession(name: string): Promise<void> {
-    const session = this.sessions.get(name);
-    if (session) {
-      await session.httpServer.close();
-      this.sessions.delete(name);
-    }
+    const serverUrl = await this.ensureServer();
+    await fetch(`${serverUrl}/api/sessions/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    });
+    this.mySessions.delete(name);
   }
 
   async destroyAll(): Promise<void> {
-    const names = [...this.sessions.keys()];
-    await Promise.all(names.map((name) => this.destroySession(name)));
+    if (this.serverUrl) {
+      // Only destroy sessions this process created
+      for (const name of this.mySessions) {
+        try {
+          await fetch(`${this.serverUrl}/api/sessions/${encodeURIComponent(name)}`, {
+            method: "DELETE",
+          });
+        } catch {
+          // Best effort
+        }
+      }
+      this.mySessions.clear();
+    }
+
+    // Shut down the server if we own it
+    if (this.ownsServer && this.serverInstance) {
+      await this.serverInstance.close();
+      this.serverInstance = null;
+      this.ownsServer = false;
+    }
+    this.serverUrl = null;
   }
 
-  listSessions(): SessionInfo[] {
-    return [...this.sessions.values()].map((s) => this.toSessionInfo(s));
-  }
-
-  broadcastToSession(name: string, mermaid: string): void {
-    const session = this.getSession(name);
-    session.httpServer.broadcast({ type: "design_update", mermaid });
-  }
-
-  private toSessionInfo(session: Session): SessionInfo {
-    return {
-      name: session.name,
-      url: session.httpServer.url,
-      createdAt: session.createdAt,
-      snapshotCount: session.store.getSnapshotCount(),
-    };
+  async listSessions(): Promise<SessionInfo[]> {
+    const serverUrl = await this.ensureServer();
+    const res = await fetch(`${serverUrl}/api/sessions`);
+    if (!res.ok) {
+      throw new Error(`Failed to list sessions: ${res.status} ${await res.text()}`);
+    }
+    const data = await res.json() as Array<{ name: string; createdAt: string; snapshotCount: number }>;
+    return data.map((s) => ({
+      name: s.name,
+      url: `${serverUrl}/s/${s.name}`,
+      createdAt: new Date(s.createdAt),
+      snapshotCount: s.snapshotCount,
+    }));
   }
 }

@@ -1,21 +1,21 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
-import { StateStore } from "./state.js";
-import {
-  handleReadDesign,
-  handleWriteDesign,
-  handleGetHistory,
-  handleRollback,
-} from "./mcp.js";
+import { describe, it, expect, afterEach } from "vitest";
+import { SessionManager } from "./session-manager.js";
 
-describe("handleReadDesign", () => {
-  let store: StateStore;
+/**
+ * These tests verify the MCP tool logic through the SessionManager HTTP client,
+ * which is the same path the MCP tool handlers use.
+ */
 
-  beforeEach(() => {
-    store = new StateStore();
+describe("MCP tool logic via SessionManager", () => {
+  const manager = new SessionManager(undefined, 0);
+
+  afterEach(async () => {
+    await manager.destroyAll();
   });
 
-  it("returns null mermaid when no design exists", async () => {
-    const result = await handleReadDesign(store);
+  it("readDesign returns null mermaid when no design exists", async () => {
+    await manager.createSession("read-empty");
+    const result = await manager.readDesign("read-empty");
     expect(result).toEqual({
       mermaid: null,
       selectedElements: [],
@@ -24,93 +24,68 @@ describe("handleReadDesign", () => {
     });
   });
 
-  it("returns current design with selected elements", async () => {
-    store.setDesign("flowchart TD\n  A --> B", "user");
-    store.setSelectedElements(["node1", "node2"]);
-    const result = await handleReadDesign(store);
-    expect(result).toEqual({
-      mermaid: "flowchart TD\n  A --> B",
-      selectedElements: ["node1", "node2"],
-      nodeCount: 0,
-      edgeCount: 0,
-    });
-  });
-});
-
-describe("handleWriteDesign", () => {
-  let store: StateStore;
-  const broadcastMock = vi.fn();
-  const broadcast = broadcastMock as (mermaid: string) => void;
-
-  beforeEach(() => {
-    store = new StateStore();
-    broadcastMock.mockClear();
-  });
-
-  it("rejects invalid mermaid", async () => {
-    const result = await handleWriteDesign(store, "", broadcast);
+  it("writeDesign rejects invalid mermaid", async () => {
+    await manager.createSession("write-bad");
+    const result = await manager.writeDesign("write-bad", "");
     expect(result.success).toBe(false);
     expect(result.errors).toBeDefined();
     expect(result.errors!.length).toBeGreaterThan(0);
-    expect(broadcastMock).not.toHaveBeenCalled();
   });
 
-  it("stores valid mermaid and calls broadcast", async () => {
+  it("writeDesign stores valid mermaid", async () => {
+    await manager.createSession("write-good");
     const mermaid = "flowchart TD\n  A --> B";
-    const result = await handleWriteDesign(store, mermaid, broadcast);
+    const result = await manager.writeDesign("write-good", mermaid);
     expect(result).toEqual({ success: true });
-    expect(store.getCurrentDesign()).toBe(mermaid);
-    expect(broadcastMock).toHaveBeenCalledWith(mermaid);
-  });
-});
 
-describe("handleGetHistory", () => {
-  let store: StateStore;
-
-  beforeEach(() => {
-    store = new StateStore();
+    const readResult = await manager.readDesign("write-good");
+    expect(readResult.mermaid).toBe(mermaid);
   });
 
-  it("returns empty history initially", () => {
-    const history = handleGetHistory(store, 10);
+  it("getHistory returns empty history initially", async () => {
+    await manager.createSession("hist-empty");
+    const history = await manager.getHistory("hist-empty", 10);
     expect(history).toEqual([]);
   });
 
-  it("returns history entries", () => {
-    store.setDesign("flowchart TD\n  A --> B", "user");
-    store.setDesign("flowchart TD\n  A --> B --> C", "claude");
-    const history = handleGetHistory(store, 10);
+  it("getHistory returns history entries", async () => {
+    await manager.createSession("hist-full");
+    await manager.writeDesign("hist-full", "flowchart TD\n  A --> B");
+    await manager.writeDesign("hist-full", "flowchart TD\n  A --> B --> C");
+    const history = await manager.getHistory("hist-full", 10);
     expect(history).toHaveLength(2);
-    expect(history[0].source).toBe("user");
+    expect(history[0].source).toBe("claude");
     expect(history[1].source).toBe("claude");
   });
-});
 
-describe("handleRollback", () => {
-  let store: StateStore;
-
-  beforeEach(() => {
-    store = new StateStore();
+  it("rollback restores a previous design", async () => {
+    await manager.createSession("rb");
+    await manager.writeDesign("rb", "flowchart TD\n  A --> B");
+    await manager.writeDesign("rb", "flowchart TD\n  X --> Y");
+    const history = await manager.getHistory("rb", 10);
+    const result = await manager.rollback("rb", history[0].timestamp);
+    expect(result.success).toBe(true);
+    expect(result.mermaid).toBe("flowchart TD\n  A --> B");
   });
 
-  it("restores a previous design", () => {
-    store.setDesign("flowchart TD\n  A --> B", "user");
-    const timestamp = store.getHistory(1)[0].timestamp;
-    store.setDesign("flowchart TD\n  X --> Y", "claude");
-    handleRollback(store, timestamp, vi.fn());
-    expect(store.getCurrentDesign()).toBe("flowchart TD\n  A --> B");
+  it("rollback returns error on invalid timestamp", async () => {
+    await manager.createSession("rb-bad");
+    const result = await manager.rollback("rb-bad", "nonexistent");
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("No snapshot found");
   });
 
-  it("throws on invalid timestamp", () => {
-    expect(() => handleRollback(store, "nonexistent", vi.fn())).toThrow();
+  it("listSessions returns all sessions", async () => {
+    await manager.createSession("ls1");
+    await manager.createSession("ls2");
+    const sessions = await manager.listSessions();
+    expect(sessions.map((s) => s.name).sort()).toEqual(["ls1", "ls2"]);
   });
 
-  it("calls broadcast with the restored design", () => {
-    const broadcastMock = vi.fn();
-    store.setDesign("flowchart TD\n  A --> B", "user");
-    const timestamp = store.getHistory(1)[0].timestamp;
-    store.setDesign("flowchart TD\n  X --> Y", "claude");
-    handleRollback(store, timestamp, broadcastMock);
-    expect(broadcastMock).toHaveBeenCalledWith("flowchart TD\n  A --> B");
+  it("destroySession removes a session", async () => {
+    await manager.createSession("doomed");
+    await manager.destroySession("doomed");
+    const sessions = await manager.listSessions();
+    expect(sessions.find((s) => s.name === "doomed")).toBeUndefined();
   });
 });
