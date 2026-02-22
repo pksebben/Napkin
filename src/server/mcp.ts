@@ -46,8 +46,16 @@ export function handleGetHistory(
   return store.getHistory(limit);
 }
 
-export function handleRollback(store: StateStore, timestamp: string): void {
+export function handleRollback(
+  store: StateStore,
+  timestamp: string,
+  broadcast: (mermaid: string) => void
+): void {
   store.rollback(timestamp);
+  const design = store.getCurrentDesign();
+  if (design) {
+    broadcast(design);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -146,8 +154,9 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
     { session: z.string(), timestamp: z.string() },
     async ({ session: name, timestamp }) => {
       try {
+        const broadcast = (m: string) => sessionManager.broadcastToSession(name, m);
         const { store } = sessionManager.getSession(name);
-        handleRollback(store, timestamp);
+        handleRollback(store, timestamp, broadcast);
         return {
           content: [
             { type: "text", text: JSON.stringify({ success: true }) },

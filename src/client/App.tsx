@@ -18,6 +18,9 @@ export default function App() {
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("draft");
   const [status, setStatus] = useState<string>("");
+  const [helpCollapsed, setHelpCollapsed] = useState<boolean>(() =>
+    localStorage.getItem("napkin-help-collapsed") === "true"
+  );
 
   // Store elements for each tab in refs to avoid re-renders
   const draftElementsRef = useRef<readonly ExcalidrawElement[]>([]);
@@ -186,7 +189,7 @@ export default function App() {
           </button>
         </div>
 
-        {/* Status + Push button on the right */}
+        {/* Status + Help + Push button on the right */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {status && (
             <span
@@ -198,6 +201,31 @@ export default function App() {
               {status}
             </span>
           )}
+          <button
+            onClick={() => {
+              const next = !helpCollapsed;
+              setHelpCollapsed(next);
+              localStorage.setItem("napkin-help-collapsed", String(next));
+            }}
+            title={helpCollapsed ? "Show help" : "Hide help"}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 6,
+              border: "1px solid #e0e0e0",
+              background: helpCollapsed ? "#fff" : "#f0f0f0",
+              cursor: "pointer",
+              fontSize: 16,
+              fontWeight: 600,
+              color: "#666",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "inherit",
+            }}
+          >
+            ?
+          </button>
           <button
             onClick={handlePush}
             disabled={activeTab !== "draft"}
@@ -218,6 +246,35 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {/* Help panel */}
+      {!helpCollapsed && (
+        <div
+          style={{
+            padding: "12px 20px",
+            backgroundColor: "#f8f9fa",
+            borderBottom: "1px solid #e0e0e0",
+            fontSize: 13,
+            color: "#495057",
+            lineHeight: 1.6,
+          }}
+        >
+          <strong style={{ fontSize: 14 }}>How to use Napkin</strong>
+          <ol style={{ margin: "6px 0 0", paddingLeft: 20 }}>
+            <li><strong>Draw</strong> your architecture on the <em>My Draft</em> tab</li>
+            <li><strong>Push to Claude</strong> to share your design for feedback</li>
+            <li>Check <strong>Claude's Revision</strong> tab to see suggested changes</li>
+            <li><strong>Iterate</strong> — refine your draft, push again, repeat</li>
+          </ol>
+          <p style={{ margin: "8px 0 0", fontSize: 12, color: "#868e96" }}>
+            Highlighted nodes in Claude's revision:
+            <span style={{ color: "#1971c2", fontWeight: 600 }}> blue</span> = discussing,
+            <span style={{ color: "#fab005", fontWeight: 600 }}> yellow</span> = new/changed,
+            <span style={{ color: "#e03131", fontWeight: 600 }}> red</span> = problem,
+            <span style={{ color: "#2f9e44", fontWeight: 600 }}> green</span> = approved.
+          </p>
+        </div>
+      )}
 
       {/* Excalidraw canvas */}
       <div style={{ flex: 1, position: "relative" }}>

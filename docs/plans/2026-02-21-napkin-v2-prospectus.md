@@ -245,12 +245,26 @@ Claude: calls napkin_list_sessions()
 
 1. **Marketplace hosting:** Create a dedicated marketplace repo (`pksebben/napkin`) or add to an existing marketplace? The marketplace is just a git repo with a `.claude-plugin/marketplace.json` catalog.
 
+ - i see no reaons not to put this on my git public.  We'll do that.
+
 2. **Session naming:** Auto-generate session names from context, or always require explicit names? Default `"default"` for single-session use keeps backward compatibility.
+
+ - i think we auto-generate, or claude decides. 
 
 3. **excalidraw-to-mermaid bundling:** This package may have issues with esbuild bundling (it does unusual things internally). May need to mark it `external` and list as a dependency, or vendor it. Needs testing.
 
+ - let's see what shakes out when we build.
+
 4. **Persistence:** Currently all state is in-memory and lost on server restart. Is that acceptable for v2, or should we add file-based snapshot persistence (e.g., `~/.napkin/sessions/`)?
+
+ - that sounds to me like a v3 feature.  Stub todo and defer.
 
 5. **npm publishing:** Do you want to publish to npm as well (for Path B), or is the plugin marketplace sufficient?
 
+ - future question.  stub and defer.
+
 6. **Client dev workflow:** During development, should `vite dev` still work for hot-reload on the frontend? This means keeping the dual-server setup (Vite on 5173, Express on 3210) for dev, while the production build is single-server.
+
+ - hot reload is really great to have.  Perhaps we should do this.
+
+7. **Quick-paintbrush annotation toolbar:** Expose the highlighting color conventions (blue/yellow/red/green) as quick-access buttons in the Excalidraw UI, so users can annotate nodes with semantic colors without writing mermaid. Would render as Excalidraw `backgroundColor`/`strokeColor` on selected elements, and survive round-trip via `style` directives in the mermaid representation. Nice-to-have — stub and defer.

@@ -97,11 +97,20 @@ describe("handleRollback", () => {
     store.setDesign("flowchart TD\n  A --> B", "user");
     const timestamp = store.getHistory(1)[0].timestamp;
     store.setDesign("flowchart TD\n  X --> Y", "claude");
-    handleRollback(store, timestamp);
+    handleRollback(store, timestamp, vi.fn());
     expect(store.getCurrentDesign()).toBe("flowchart TD\n  A --> B");
   });
 
   it("throws on invalid timestamp", () => {
-    expect(() => handleRollback(store, "nonexistent")).toThrow();
+    expect(() => handleRollback(store, "nonexistent", vi.fn())).toThrow();
+  });
+
+  it("calls broadcast with the restored design", () => {
+    const broadcastMock = vi.fn();
+    store.setDesign("flowchart TD\n  A --> B", "user");
+    const timestamp = store.getHistory(1)[0].timestamp;
+    store.setDesign("flowchart TD\n  X --> Y", "claude");
+    handleRollback(store, timestamp, broadcastMock);
+    expect(broadcastMock).toHaveBeenCalledWith("flowchart TD\n  A --> B");
   });
 });

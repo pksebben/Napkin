@@ -33,9 +33,22 @@ Every `napkin_start` call creates (or returns) a named session. All other tools 
 - Do NOT call `napkin_start` proactively. Only start it when the user asks to sketch or design.
 - When writing mermaid, always use `flowchart TD` (or `LR`) syntax. Other diagram types are not supported for round-tripping.
 - Reference specific nodes and edges by their mermaid IDs when discussing the design.
-- If `napkin_read_design` returns `selectedElements`, the user is pointing at those specific elements — focus your response on them.
+- If `napkin_read_design` returns `selectedElements`, the user may be pointing at those elements — use as a context signal but prefer highlighting (below) for visual emphasis.
 - Keep mermaid diagrams clean and readable. Use descriptive node labels.
 - Always pass the `session` name returned by `napkin_start` to subsequent tool calls.
+
+## Highlighting Nodes
+
+Use mermaid `style` directives to highlight nodes. The `fill` and `stroke` colors render as `backgroundColor` and `strokeColor` in Excalidraw.
+
+| Purpose | Directive | Color |
+|---------|-----------|-------|
+| Topic of discussion | `style NODE fill:#d0ebff,stroke:#1971c2` | Blue |
+| New or changed nodes | `style NODE fill:#fff3bf,stroke:#fab005` | Yellow |
+| Problem nodes | `style NODE fill:#ffe0e0,stroke:#e03131` | Red |
+| Approved / good nodes | `style NODE fill:#d3f9d8,stroke:#2f9e44` | Green |
+
+Apply highlighting when writing designs to draw the user's attention to what changed, what needs fixing, or what looks good. You can highlight multiple nodes with separate `style` lines.
 
 ## Example Mermaid
 
@@ -52,6 +65,8 @@ flowchart TD
     QUEUE --> WORKER
     WORKER --> DB
     AUTH --> DB
+
+    style WORKER fill:#fff3bf,stroke:#fab005
 ```
 
 ## Workflow Pattern
