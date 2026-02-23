@@ -94,17 +94,29 @@ describe("MCP tool logic via SessionManager", () => {
 });
 
 describe("MCP prompts", () => {
-  it("napkin_guide prompt returns usage guide", async () => {
-    const manager = new SessionManager(undefined, 0);
-    const server = createMcpServer(manager);
-    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  let manager: SessionManager;
+  let server: ReturnType<typeof createMcpServer>;
+  let client: Client;
 
-    const client = new Client({ name: "test-client", version: "1.0.0" });
+  afterEach(async () => {
+    await manager?.destroyAll();
+    await server?.close();
+    await client?.close();
+  });
+
+  async function setup() {
+    manager = new SessionManager(undefined, 0);
+    server = createMcpServer(manager);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    client = new Client({ name: "test-client", version: "1.0.0" });
     await Promise.all([
       server.connect(serverTransport),
       client.connect(clientTransport),
     ]);
+  }
 
+  it("napkin_guide prompt returns usage guide", async () => {
+    await setup();
     const result = await client.getPrompt({ name: "napkin_guide" });
     expect(result.messages).toHaveLength(1);
     expect(result.messages[0].role).toBe("user");
@@ -115,9 +127,12 @@ describe("MCP prompts", () => {
     expect(text).toContain("napkin_start");
     expect(text).toContain("flowchart TD");
     expect(text).toContain("fill:#d0ebff");
+  });
 
-    await manager.destroyAll();
-    await server.close();
-    await client.close();
+  it("tool descriptions reference napkin_guide prompt", async () => {
+    await setup();
+    const { tools } = await client.listTools();
+    const startTool = tools.find(t => t.name === "napkin_start");
+    expect(startTool?.description).toContain("napkin_guide");
   });
 });

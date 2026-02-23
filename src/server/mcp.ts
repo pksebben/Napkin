@@ -122,7 +122,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
   // napkin_start — creates/returns a session with its HTTP server
   server.tool(
     "napkin_start",
-    "Start the Napkin HTTP server",
+    "Start a Napkin collaborative design session. Returns { url, session }. Use the napkin_guide prompt for workflow instructions and highlighting conventions.",
     { session: z.string().optional() },
     async ({ session: name }) => {
       const info = await sessionManager.createSession(name ?? undefined);
@@ -135,7 +135,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
   // napkin_stop — stops one session or all sessions
   server.tool(
     "napkin_stop",
-    "Stop the Napkin HTTP server",
+    "Stop a Napkin session (by name) or all sessions (omit session). Cleans up server resources.",
     { session: z.string().optional() },
     async ({ session: name }) => {
       if (name) {
@@ -152,7 +152,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
   // napkin_read_design — returns current design state for a session
   server.tool(
     "napkin_read_design",
-    "Read the current design from Napkin",
+    "Read the current design from a Napkin session as { mermaid, selectedElements, nodeCount, edgeCount }. selectedElements indicates what the user is pointing at.",
     { session: z.string() },
     async ({ session: name }) => {
       const result = await sessionManager.readDesign(name);
@@ -165,7 +165,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
   // napkin_write_design — validates and stores a mermaid diagram
   server.tool(
     "napkin_write_design",
-    "Write a mermaid diagram to Napkin. Supported types: flowchart/graph, sequenceDiagram, classDiagram. Other types (erDiagram, stateDiagram, etc.) will be rejected — use a flowchart instead.",
+    "Write a Mermaid diagram to a Napkin session. Supported types: flowchart/graph, sequenceDiagram, classDiagram. Use style directives for node highlighting (see napkin_guide prompt).",
     { session: z.string(), mermaid: z.string() },
     async ({ session: name, mermaid }) => {
       const result = await sessionManager.writeDesign(name, mermaid);
@@ -184,7 +184,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
   // napkin_get_history — returns design history for a session
   server.tool(
     "napkin_get_history",
-    "Get design history from Napkin",
+    "Get timestamped design snapshots for a Napkin session. Each entry includes source (user/claude) and mermaid content.",
     { session: z.string(), limit: z.number().optional().default(10) },
     async ({ session: name, limit }) => {
       const history = await sessionManager.getHistory(name, limit);
@@ -197,7 +197,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
   // napkin_rollback — restores a previous design by timestamp
   server.tool(
     "napkin_rollback",
-    "Rollback to a previous design in Napkin",
+    "Rollback to a previous design by timestamp. Get timestamps from napkin_get_history.",
     { session: z.string(), timestamp: z.string() },
     async ({ session: name, timestamp }) => {
       const result = await sessionManager.rollback(name, timestamp);
@@ -220,7 +220,7 @@ export function createMcpServer(sessionManager: SessionManager): McpServer {
   // napkin_list_sessions — returns all active sessions
   server.tool(
     "napkin_list_sessions",
-    "List all active Napkin sessions",
+    "List all active Napkin sessions with their URLs.",
     async () => {
       const sessions = await sessionManager.listSessions();
       return {
