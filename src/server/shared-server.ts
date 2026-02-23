@@ -271,12 +271,13 @@ export async function startSharedServer(
   app.use(express.static(clientDir));
 
   // SPA fallback — serve index.html for /s/{name}/* paths
+  // Use { root } option so Express doesn't reject dotfile directories (e.g. ~/.local)
   app.get("/s/{*splat}", (_req, res) => {
-    res.sendFile(path.join(clientDir, "index.html"));
+    res.sendFile("index.html", { root: clientDir });
   });
   // Also handle root
   app.get("/", (_req, res) => {
-    res.sendFile(path.join(clientDir, "index.html"));
+    res.sendFile("index.html", { root: clientDir });
   });
 
   const httpServer = createServer(app);
