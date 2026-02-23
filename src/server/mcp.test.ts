@@ -1,5 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { SessionManager } from "./session-manager.js";
+import { createMcpServer } from "./mcp.js";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 /**
  * These tests verify the MCP tool logic through the SessionManager HTTP client,
@@ -87,5 +90,34 @@ describe("MCP tool logic via SessionManager", () => {
     await manager.destroySession("doomed");
     const sessions = await manager.listSessions();
     expect(sessions.find((s) => s.name === "doomed")).toBeUndefined();
+  });
+});
+
+describe("MCP prompts", () => {
+  it("napkin_guide prompt returns usage guide", async () => {
+    const manager = new SessionManager(undefined, 0);
+    const server = createMcpServer(manager);
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+
+    const client = new Client({ name: "test-client", version: "1.0.0" });
+    await Promise.all([
+      server.connect(serverTransport),
+      client.connect(clientTransport),
+    ]);
+
+    const result = await client.getPrompt({ name: "napkin_guide" });
+    expect(result.messages).toHaveLength(1);
+    expect(result.messages[0].role).toBe("user");
+    expect(result.messages[0].content).toMatchObject({ type: "text" });
+
+    const text = (result.messages[0].content as { type: "text"; text: string }).text;
+    expect(text).toContain("Napkin");
+    expect(text).toContain("napkin_start");
+    expect(text).toContain("flowchart TD");
+    expect(text).toContain("fill:#d0ebff");
+
+    await manager.destroyAll();
+    await server.close();
+    await client.close();
   });
 });
