@@ -1,4 +1,7 @@
 import esbuild from "esbuild";
+import { readFileSync } from "fs";
+
+const pkg = JSON.parse(readFileSync("package.json", "utf-8"));
 
 await esbuild.build({
   entryPoints: ["src/server/cli.ts"],
@@ -16,6 +19,7 @@ await esbuild.build({
   define: {
     "import.meta.url": "_importMetaUrl",
     "__IS_BUNDLE__": "true",
+    "__NAPKIN_VERSION__": JSON.stringify(pkg.version),
   },
   external: ["bufferutil", "utf-8-validate"],
 });
