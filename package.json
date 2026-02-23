@@ -17,8 +17,7 @@
     "napkin": "./dist/napkin.cjs"
   },
   "files": [
-    "dist/",
-    "skills/"
+    "dist/"
   ],
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
