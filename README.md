@@ -37,13 +37,15 @@ npm install
 npm run build
 ```
 
-Then register the MCP server with Claude Code:
+Then install:
 
 ```bash
 node dist/napkin.cjs install
 ```
 
-This runs `claude mcp add` to register Napkin globally. Alternatively, the repo includes a `.mcp.json` that configures it per-project automatically:
+This copies the built artifacts to `~/.local/share/napkin/`, symlinks `~/.local/bin/napkin`, and registers the MCP server with Claude Code. After install, the git clone is no longer needed.
+
+For development, the repo includes a `.mcp.json` that configures the MCP server per-project (requires keeping the clone):
 
 ```json
 {
@@ -185,7 +187,7 @@ src/
   server/
     index.ts             # Entry point (wires MCP + persistence)
     cli.ts               # CLI router (napkin mcp | napkin install)
-    mcp.ts               # MCP tool definitions
+    mcp.ts               # MCP tool definitions + usage guide prompt
     session-manager.ts   # HTTP client to shared server
     shared-server.ts     # Express + WebSocket server
     state.ts             # In-memory state store per session
@@ -195,8 +197,6 @@ src/
   shared/
     types.ts             # Shared TypeScript interfaces
     colors.ts            # Highlight color definitions
-skills/
-  napkin/SKILL.md        # Claude Code skill (auto-loaded)
 ```
 
 ### Scripts
@@ -217,7 +217,7 @@ For local development, run `dev:client` and `dev:server` in separate terminals. 
 npm test
 ```
 
-81 tests across 7 files covering state, dehydration, validation, persistence, HTTP/WebSocket server, multi-process discovery, and MCP tool logic.
+83 tests across 7 files covering state, dehydration, validation, persistence, HTTP/WebSocket server, multi-process discovery, MCP tool logic, and MCP prompts.
 
 ### Environment Variables
 
